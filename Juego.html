@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Reciclaje con Niveles</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f8ff;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #2e8b57;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        
+        .level-info {
+            margin: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .bins-container {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        
+        .bin {
+            width: 120px;
+            height: 150px;
+            border: 2px solid #333;
+            border-radius: 0 0 10px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 10px;
+            position: relative;
+        }
+        
+        #organic-bin {
+            background-color: #8b4513;
+        }
+        
+        #recyclable-bin {
+            background-color: #4682b4;
+        }
+        
+        #paper-bin {
+            background-color: #f5deb3;
+        }
+        
+        #trash-bin {
+            background-color: #696969;
+        }
+        
+        .bin-label {
+            color: white;
+            font-weight: bold;
+            margin-top: 5px;
+            text-shadow: 1px 1px 1px #000;
+        }
+        
+        .items-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            width: 80%;
+            margin-bottom: 30px;
+            min-height: 180px;
+        }
+        
+        .item {
+            width: 80px;
+            height: 80px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            cursor: grab;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+        
+        .item:hover {
+            transform: scale(1.1);
+            border-color: #333;
+        }
+        
+        .feedback {
+            font-size: 24px;
+            font-weight: bold;
+            height: 30px;
+            margin: 10px 0;
+        }
+        
+        .correct {
+            color: green;
+        }
+        
+        .incorrect {
+            color: red;
+        }
+        
+        .score {
+            font-size: 20px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .reset-btn {
+            background-color: #2e8b57;
+        }
+        
+        .reset-btn:hover {
+            background-color: #3cb371;
+        }
+        
+        .next-level-btn {
+            background-color: #ff8c00;
+            display: none;
+        }
+        
+        .next-level-btn:hover {
+            background-color: #ffa500;
+        }
+        
+        .level-complete {
+            font-size: 24px;
+            color: #2e8b57;
+            font-weight: bold;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Juego de Reciclaje con Niveles</h1>
+    <p>Arrastra cada residuo a la caneca correspondiente</p>
+    
+    <div class="game-container">
+        <div class="level-info" id="level-info">Nivel 1 de 3</div>
+        
+        <div class="bins-container">
+            <div id="organic-bin" class="bin" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <div class="bin-label">Orgánico</div>
+            </div>
+            <div id="recyclable-bin" class="bin" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <div class="bin-label">Reciclable</div>
+            </div>
+            <div id="paper-bin" class="bin" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <div class="bin-label">Papel/Cartón</div>
+            </div>
+            <div id="trash-bin" class="bin" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <div class="bin-label">Basura</div>
+            </div>
+        </div>
+        
+        <div class="feedback" id="feedback"></div>
+        <div class="score" id="score">Aciertos: 0 | Errores: 0</div>
+        
+        <div class="level-complete" id="level-complete">¡Nivel completado!</div>
+        
+        <div class="items-container" id="items-container">
+            <!-- Los items se generan dinámicamente -->
+        </div>
+        
+        <button class="btn next-level-btn" id="next-level-btn" onclick="nextLevel()">Siguiente Nivel</button>
+        <button class="btn reset-btn" onclick="resetGame()">Reiniciar Juego</button>
+    </div>
+
+    <script>
+        // Variables del juego
+        let currentLevel = 1;
+        const maxLevel = 3;
+        let correctAnswers = 0;
+        let wrongAnswers = 0;
+        let itemsToPlace = 0;
+        let itemsPlaced = 0;
+        
+        // Elementos del DOM
+        const feedbackElement = document.getElementById('feedback');
+        const scoreElement = document.getElementById('score');
+        const levelInfoElement = document.getElementById('level-info');
+        const itemsContainer = document.getElementById('items-container');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const levelCompleteElement = document.getElementById('level-complete');
+        
+        // Configuración de niveles
+        const levels = {
+            1: {
+                items: [
+                    { id: 'apple', type: 'organic', image: 'https://cdn-icons-png.flaticon.com/512/415/415733.png' },
+                    { id: 'bottle', type: 'recyclable', image: 'Imagenes/agua.png' },
+                    { id: 'newspaper', type: 'paper', image: 'Imagenes/periodico.png' },
+                    { id: 'battery', type: 'trash', image: 'Imagenes/bateria.png' }
+                ],
+                message: "Nivel 1: Residuos básicos"
+            },
+            2: {
+                items: [
+                    { id: 'banana', type: 'organic', image: 'https://cdn-icons-png.flaticon.com/512/2909/2909761.png' },
+                    { id: 'can', type: 'recyclable', image: 'Imagenes/caja-de-leche.png' },
+                    { id: 'box', type: 'paper', image: 'Imagenes/caja.png' },
+                    { id: 'diaper', type: 'trash', image: 'Imagenes/panal.png' },
+                    { id: 'egg-shell', type: 'organic', image: 'Imagenes/huevo.png' },
+                    { id: 'glass', type: 'recyclable', image: 'Imagenes/gafas.png' }
+                ],
+                message: "Nivel 2: Más residuos y algunos más difíciles"
+            },
+            3: {
+                items: [
+                    { id: 'meat', type: 'organic', image: 'Imagenes/carne.png' },
+                    { id: 'pizza-box', type: 'paper', image: 'Imagenes/pizza.png' },
+                    { id: 'plastic-bag', type: 'recyclable', image: 'Imagenes/bolsa.png' },
+                    { id: 'cd', type: 'trash', image: 'Imagenes/cd.png' },
+                    { id: 'coffee-grounds', type: 'organic', image: 'Imagenes/cafe.png' },
+                    { id: 'tetra-pack', type: 'recyclable', image: 'Imagenes/tetra.png' },
+                    { id: 'greasy-paper', type: 'paper', image: 'Imagenes/basura.png' }
+                ],
+                message: "Nivel 3: Residuos complejos con categorías menos obvias"
+            }
+        };
+        
+        // Inicializar el juego
+        initGame();
+        
+        function initGame() {
+            // Reiniciar contadores
+            correctAnswers = 0;
+            wrongAnswers = 0;
+            itemsPlaced = 0;
+            
+            // Actualizar información del nivel
+            levelInfoElement.textContent = `Nivel ${currentLevel} de ${maxLevel}: ${levels[currentLevel].message}`;
+            scoreElement.textContent = `Aciertos: ${correctAnswers} | Errores: ${wrongAnswers}`;
+            feedbackElement.textContent = "";
+            feedbackElement.className = "feedback";
+            levelCompleteElement.style.display = "none";
+            nextLevelBtn.style.display = "none";
+            
+            // Limpiar contenedores
+            itemsContainer.innerHTML = "";
+            const bins = document.querySelectorAll('.bin');
+            bins.forEach(bin => {
+                const clonedItems = bin.querySelectorAll('.cloned-item');
+                clonedItems.forEach(item => {
+                    bin.removeChild(item);
+                });
+            });
+            
+            // Crear items para el nivel actual
+            const levelItems = levels[currentLevel].items;
+            itemsToPlace = levelItems.length;
+            
+            levelItems.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.id = item.id;
+                itemElement.className = 'item';
+                itemElement.draggable = true;
+                itemElement.dataset.type = item.type;
+                itemElement.style.backgroundImage = `url('${item.image}')`;
+                itemElement.addEventListener('dragstart', drag);
+                itemsContainer.appendChild(itemElement);
+            });
+        }
+        
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+        
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+            ev.dataTransfer.setData("type", ev.target.dataset.type);
+        }
+        
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const itemType = ev.dataTransfer.getData("type");
+            const item = document.getElementById(data);
+            const bin = ev.target.classList.contains('bin') ? ev.target : ev.target.closest('.bin');
+            
+            if (!bin || item.classList.contains('used')) return;
+            
+            const binId = bin.id;
+            let binType = "";
+            
+            if (binId.includes("organic")) binType = "organic";
+            else if (binId.includes("recyclable")) binType = "recyclable";
+            else if (binId.includes("paper")) binType = "paper";
+            else if (binId.includes("trash")) binType = "trash";
+            
+            if (binType === itemType) {
+                feedbackElement.textContent = "¡Correcto!";
+                feedbackElement.className = "feedback correct";
+                correctAnswers++;
+            } else {
+                feedbackElement.textContent = "Incorrecto. Intenta de nuevo.";
+                feedbackElement.className = "feedback incorrect";
+                wrongAnswers++;
+            }
+            
+            scoreElement.textContent = `Aciertos: ${correctAnswers} | Errores: ${wrongAnswers}`;
+            
+            // Crear elemento clonado para la caneca
+            const clonedItem = item.cloneNode(true);
+            clonedItem.style.width = "50px";
+            clonedItem.style.height = "50px";
+            clonedItem.style.cursor = "default";
+            clonedItem.draggable = false;
+            clonedItem.classList.add('cloned-item');
+            bin.appendChild(clonedItem);
+            
+            // Marcar el elemento original como usado
+            item.classList.add('used');
+            item.style.visibility = "hidden";
+            
+            // Verificar si se completó el nivel
+            itemsPlaced++;
+            if (itemsPlaced === itemsToPlace) {
+                levelComplete();
+            }
+        }
+        
+        function levelComplete() {
+            levelCompleteElement.style.display = "block";
+            if (currentLevel < maxLevel) {
+                nextLevelBtn.style.display = "inline-block";
+            } else {
+                levelCompleteElement.textContent = "¡Felicidades! Has completado todos los niveles.";
+                setTimeout(() => {
+                    if (confirm("¿Quieres jugar de nuevo?")) {
+                        currentLevel = 1;
+                        initGame();
+                    }
+                }, 1000);
+            }
+        }
+        
+        function nextLevel() {
+            currentLevel++;
+            initGame();
+        }
+        
+        function resetGame() {
+            currentLevel = 1;
+            initGame();
+        }
+    </script>
+</body>
+</html>
